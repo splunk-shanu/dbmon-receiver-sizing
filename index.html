@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBMon collector sizing</title>
+<style>
+  :root {
+    --ink: #16191d;
+    --muted: #5b6672;
+    --faint: #8a949e;
+    --line: #dfe3e8;
+    --bg: #fbfbfc;
+    --card: #ffffff;
+    --accent: #0b5cad;
+    --warn-bg: #fff8e6;
+    --warn-line: #e6c65c;
+    --warn-ink: #6b4e00;
+    --stop-bg: #fdf0ef;
+    --stop-line: #e0a9a4;
+    --stop-ink: #8a2c22;
+    --ok: #1d6f42;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1.25rem 4rem;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 0.3rem; }
+  .sub { color: var(--muted); margin: 0 0 2rem; font-size: 0.93rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 1.4rem; margin-bottom: 1.4rem;
+  }
+  h2 {
+    font-size: 0.76rem; font-weight: 650; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--faint);
+    margin: 0 0 1rem; padding-bottom: 0.55rem; border-bottom: 1px solid var(--line);
+  }
+  label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 0.35rem; }
+  .controls { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end; }
+  .control { flex: 1 1 170px; }
+  input[type=number], select {
+    width: 100%; padding: 0.6rem 0.7rem; font-size: 1.05rem; font-family: inherit;
+    border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink);
+  }
+  input[type=number]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .hint { font-size: 0.76rem; color: var(--faint); margin-top: 0.35rem; }
+  .req { display: flex; gap: 2.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+  .req div { min-width: 120px; }
+  .req .k { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); }
+  .req .v { font-size: 1.55rem; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+  .req .v small { font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-left: 0.15rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+       color: var(--faint); font-weight: 650; padding: 0 0.6rem 0.5rem 0; border-bottom: 1px solid var(--line); }
+  td { padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid #f0f2f4; font-variant-numeric: tabular-nums; }
+  td.name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
+  tr.pick td { background: #f3f8fd; }
+  tr.pick td.name { font-weight: 650; }
+  .tag { display: inline-block; font-size: 0.68rem; font-weight: 650; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.4rem;
+         background: #e6f0f9; color: var(--accent); }
+  .note { border-radius: 8px; padding: 0.85rem 1rem; font-size: 0.86rem; margin-bottom: 1rem; }
+  .note.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-ink); }
+  .note.stop { background: var(--stop-bg); border: 1px solid var(--stop-line); color: var(--stop-ink); }
+  .note b { font-weight: 650; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+  @media (max-width: 680px) { .two { grid-template-columns: 1fr; } }
+  footer { color: var(--faint); font-size: 0.8rem; line-height: 1.6; }
+  footer code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; }
+  .formula { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem;
+             background: #f6f7f9; border: 1px solid var(--line); border-radius: 6px;
+             padding: 0.6rem 0.8rem; margin: 0.5rem 0 0; white-space: pre; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DBMon collector sizing</h1>
+  <p class="sub">Minimum vCPU and memory for a Splunk OTel Collector running N database receivers, with matching AWS and Azure instances.</p>
+
+  <div class="card">
+    <h2>Input</h2>
+    <div class="controls">
+      <div class="control">
+        <label for="n">Receivers</label>
+        <input type="number" id="n" min="1" max="2000" step="1" value="100">
+        <div class="hint">One receiver per monitored database</div>
+      </div>
+      <div class="control">
+        <label for="engine">Database</label>
+        <select id="engine">
+          <option value="oracle" selected>Oracle</option>
+          <option value="sqlserver">SQL Server</option>
+          <option value="postgresql">PostgreSQL</option>
+          <option value="mysql">MySQL</option>
+        </select>
+        <div class="hint" id="engine-hint">Measured</div>
+      </div>
+      <div class="control">
+        <label for="headroom">Headroom</label>
+        <select id="headroom">
+          <option value="1.25">1.25&times; &mdash; tight</option>
+          <option value="1.5" selected>1.5&times; &mdash; recommended</option>
+          <option value="2">2&times; &mdash; conservative</option>
+        </select>
+        <div class="hint">Applied to measured peak</div>
+      </div>
+      <div class="control">
+        <label for="family">Preference</label>
+        <select id="family">
+          <option value="any" selected>Any family</option>
+          <option value="compute">Compute-optimised</option>
+          <option value="general">General purpose</option>
+        </select>
+        <div class="hint">Filters the shortlist</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="validity"></div>
+
+  <div class="card">
+    <h2>Required capacity</h2>
+    <div class="req" id="req"></div>
+    <div class="hint" id="binding"></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h2>AWS</h2>
+      <table><thead><tr><th>Instance</th><th>vCPU</th><th>Memory</th></tr></thead>
+      <tbody id="aws"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Azure</h2>
+      <table><thead><tr><th>Instance</th><th>vCPU</th><th>Memory</th></tr></thead>
+      <tbody id="azure"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Basis</h2>
+    <footer id="basis"></footer>
+  </div>
+</div>
+<script src="sizing.js"></script>
+</body>
+</html>
